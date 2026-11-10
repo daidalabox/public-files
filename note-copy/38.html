@@ -1,0 +1,210 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>38 Cloudflare Workers AI(失敗とコスト編)</title>
+<style>body{font-family:sans-serif;max-width:820px;margin:0 auto;padding:16px;line-height:1.8}#c{padding:10px 18px;font-size:16px;background:#0a7;color:#fff;border:0;border-radius:6px;position:sticky;top:8px}img{max-width:100%;height:auto}</style></head><body>
+<button id="c" onclick="var e=document.getElementById('body'),r=document.createRange();r.selectNodeContents(e);var s=getSelection();s.removeAllRanges();s.addRange(r);var ok=false;try{ok=document.execCommand('copy')}catch(_){};this.textContent=ok?'コピー済み':'コピー失敗'">本文をコピー</button>
+<div id="body"><p><small>※この記事にはプロモーション(アフィリエイト広告)を含みます。</small></p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/workers-ai/38_cover_neon.png" alt="連載「Cloudflare Workers AI」失敗とコスト編" width="720" /></p>
+<p>画像生成ツールは、思ったよりあっさり動きました。ここまでは前回の構築編のとおりです。</p>
+<p>ところが、使いはじめると、エラーが次々に出ました。</p>
+<p>連載「Cloudflare Workers AI」の第3回、失敗とコスト編です。この記事は、その失敗の記録です。踏んだエラーは5つ。どれも原因がわかれば短い話ですが、最初は何が起きているのかさっぱりでした。</p>
+<p>最後に、いちばん焦った場面と、実際にかかるコストの数字をまとめます。同じところで止まる人の、時間の節約になればうれしいです。</p>
+<h2>この記事でわかること</h2>
+<ul>
+<li>画像生成ツールで踏んだ5つのエラーの、症状・原因・直し方</li>
+<li>無料枠を超えたときに何が起きるか(無料プランと有料プランの違い)</li>
+<li>モデルごとの、1日に作れる枚数の目安と、その数字の根拠</li>
+</ul>
+<h2>先に、5つのエラー早見表</h2>
+<p>あとで詳しく書く5つを、先に一覧にしておきます。</p>
+<ul>
+<li><strong>5006</strong>(症状:余計な項目は受け付けないと言われる、原因:簡易モデルに、使えない項目(seed)を渡していた、直し方:seedを外す)</li>
+<li><strong>3030</strong>(症状:画像の入力がモデルにないと言われる、原因:参考画像に対応していないモデルを選んでいた、直し方:モデルの振り分けを作る)</li>
+<li><strong>3043</strong>(症状:内部エラーと出る、原因:Cloudflare側の一時的な不具合と見られる、直し方:もう一度実行する)</li>
+<li><strong>なし</strong>(症状:スマホで保存できない、原因:画像をデータのリンクにする方式が合わなかった、直し方:共有機能に切り替える)</li>
+<li><strong>なし</strong>(症状:消費の見積もりが大きく外れる、原因:見積もりの計算が間違っていた、直し方:実測を基準にする)</li>
+</ul>
+<h2>失敗1:seedを入れたら弾かれた(5006)</h2>
+<ul>
+<li><strong>症状</strong>:「失敗: 5006: Additional or unevaluated properties '/seed' at '/' not allowed」と出る</li>
+<li><strong>原因</strong>:簡易モデル(FLUX schnell)は、プロンプトとステップ数しか受け付けない。そこにseedを渡していた</li>
+<li><strong>直し方</strong>:schnellの呼び出しからseedを外した</li>
+</ul>
+<p>エラー文を読むと、「'/seed' は許されていない」と、はっきり書いてあります。英語ですが、短くて正直です。</p>
+<p>直した部分は、こうです。</p>
+<pre><code>// 直す前:seedを渡していた(5006で弾かれる)
+resp = await env["AI"].run(MODELS.draft, { prompt: full.slice(0, 2048), steps, seed });
+
+// 直した後:プロンプトとステップ数だけ
+resp = await env["AI"].run(MODELS.draft, { prompt: full.slice(0, 2048), steps });</code></pre>
+<p>つまり、このモデルへの呼び出しではseedを指定できず、同じ画像を狙って再現する手段は限られます。今回のツールでは割り切りました。</p>
+<p>もし同じ絵をもう一度作りたいなら、seedを受け付けるモデルを使います。私のツールでは、参考画像ありの簡易と高精度が、これにあたります。</p>
+<h2>失敗2:参考画像を渡したら、モデルが「画像なんて知らない」(3030)</h2>
+<ul>
+<li><strong>症状</strong>:「失敗: 3030: Model input is not valid: input tensor `image` is not present in the model」</li>
+<li><strong>原因</strong>:ネガティブプロンプト用にSDXL Lightningを使っていたが、このモデルは参考画像に対応していなかった</li>
+<li><strong>直し方</strong>:モデルの振り分けを作った</li>
+</ul>
+<p>「入力のテンソル image が、モデルに存在しない」。かみ砕くと、「このモデルに、画像を渡す口はありません」という意味です。</p>
+<p>振り分けはこうです。</p>
+<ul>
+<li>参考画像ありの簡易:FLUX.2 klein 4B</li>
+<li>参考画像ありの高精度:FLUX.2 klein 9B</li>
+<li>ネガティブあり・参考画像なしの簡易:SDXL Lightning</li>
+<li>それ以外の簡易:FLUX schnell</li>
+</ul>
+<p>コードの上では、先に条件を整理してから、呼び分けています。考え方だけ抜き出すと、次のようになります。</p>
+<pre><code>const useRef = typeof body.refImage === "string" &amp;&amp; body.refImage.length &gt; 100;
+const neg = String(body.negative || "").trim().slice(0, 500);
+
+if (mode === "draft" &amp;&amp; !useRef &amp;&amp; !neg) {
+ // 参考画像もネガティブもない簡易 → schnell
+} else if (mode === "draft" &amp;&amp; !useRef) {
+ // ネガティブだけある簡易 → SDXL Lightning
+} else {
+ // 参考画像がある簡易(klein 4B)と、高精度(klein 9B)
+}</code></pre>
+<p>モデルごとにできることが違う。繰り返し踏むと、さすがに身につきます。</p>
+<p># モデルを選ぶ前に確かめること<br>今なら、モデルを決める前に、次の3点をカタログで見ます。</p>
+<ol>
+<li><strong>入力に何を渡せるか</strong>:文字だけか、画像も渡せるか</li>
+<li><strong>使える項目はどれか</strong>:seed、ステップ数、ネガティブプロンプトなど</li>
+<li><strong>出力の形は何か</strong>:画像のデータか、文字か</li>
+</ol>
+<p>この3つが違うと、同じ呼び方をしても、エラーになります。失敗1も失敗2も、原因はここでした。</p>
+<h2>失敗3:理由がわからない「内部エラー」(3043)</h2>
+<ul>
+<li><strong>症状</strong>:「失敗: 3043: Internal server error」</li>
+<li><strong>原因</strong>:Cloudflare側の一時的な内部エラーと見られる。こちらでは特定できない</li>
+<li><strong>直し方</strong>:もう一度、実行する。時間をおけば直ることが多い</li>
+</ul>
+<p>自動で再試行する仕組みを足す案もありますが、いまのところは入れていません。最初から完璧を目指さない。自分専用のツールなので、そこは割り切りです。</p>
+<p>参考までに、再試行の仕組みは、次のような形で足せます。3043のような一時的なエラーだけを、間をあけて最大2回やり直し、ほかのエラーはそのまま返します。ダミーのAIで、「2回失敗して3回目に成功する場合」と「別のエラーはすぐ返す場合」の動きは確かめましたが、実際のWorkerには組み込んでいません。</p>
+<pre><code>async function runWithRetry(env, model, input, tries = 2) {
+ for (let i = 0; i &lt;= tries; i++) {
+ try {
+ return await env["AI"].run(model, input);
+ } catch (e) {
+ const msg = String(e &amp;&amp; e.message ? e.message : e);
+ const temporary = msg.includes("3043") || msg.includes("Internal server error");
+ if (!temporary || i === tries) throw e;
+ await new Promise((r) =&gt; setTimeout(r, 1000 * (i + 1)));
+ }
+ }
+}</code></pre>
+<p>ただし、やり直しのたびに、無料枠のニューロンを使う可能性があります。高精度モードに入れるときは、回数を欲張らないほうが安全です。</p>
+<h2>失敗4:スマホで画像が保存できない</h2>
+<ul>
+<li><strong>症状</strong>:スマホで「保存」を押しても、画像が保存されない</li>
+<li><strong>原因</strong>:画像をデータのURLでリンクにしていた方式が、スマホのブラウザでうまく動かなかった</li>
+<li><strong>直し方</strong>:共有機能(Web Share API)で共有シートを開く形に変更。使えない環境では、ファイルとしてダウンロードする方式に切り替える</li>
+</ul>
+<p>ツールを作ったのに、作った画像を手元にできないのは、いちばんもどかしい失敗でした。</p>
+<p>直したあとの保存の部分は、こうなっています。</p>
+<pre><code>function saveImage(b64, mime, fname){
+ try {
+ var bin = atob(b64), n = bin.length, u = new Uint8Array(n);
+ for (var i = 0; i &lt; n; i++) u[i] = bin.charCodeAt(i);
+ var blob = new Blob([u], { type: mime });
+ var file = new File([blob], fname, { type: mime });
+ if (navigator.canShare &amp;&amp; navigator.share &amp;&amp; navigator.canShare({ files: [file] })) {
+ navigator.share({ files: [file] }).catch(function(){});
+ return;
+ }
+ var url = URL.createObjectURL(blob);
+ var l = document.createElement("a");
+ l.href = url; l.download = fname;
+ document.body.appendChild(l); l.click(); document.body.removeChild(l);
+ setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+ } catch (e) {
+ note.textContent = "保存に失敗しました。画像を長押し(右クリック)して保存してください";
+ }
+}</code></pre>
+<p>流れは、3段構えです。</p>
+<ol>
+<li>共有機能が使える環境なら、スマホの共有シートを開く(写真アプリへの保存もここから選べる)</li>
+<li>使えない環境なら、ファイルとしてダウンロードする</li>
+<li>それも失敗したら、「画像を長押しして保存してください」と案内する</li>
+</ol>
+<p>上のコードの最後の `note` は、画面の別の場所にある、メッセージの表示欄です。単体では動かず、ツール全体の一部として動いています。</p>
+<h2>失敗5:見積もりが、だいぶ外れていた</h2>
+<ul>
+<li><strong>症状</strong>:簡易モード1枚あたり、60ニューロン程度のつもりだったのに、ダッシュボードでは約173ニューロンだった</li>
+<li><strong>原因</strong>:見積もりの計算が間違っていた</li>
+<li><strong>直し方</strong>:画面の説明文を直し、実測値を基準にした</li>
+</ul>
+<p>ここで学んだことはひとつ。見積もりより、ダッシュボードの実測を信じる。それだけです。</p>
+<p>当時、私の設定と画像サイズで使った概算式は、「19.2 + 38.4 × ステップ数」です。ステップ数が4なら、19.2 + 153.6 = 172.8。実測の約173と、ほぼ一致します。</p>
+<p>この差が、次の焦りにつながりました。</p>
+<h2>山場：無料枠を超えたと言われ、課金を疑った</h2>
+<p>ある朝、ダッシュボードを開いて固まりました。やってしまった！</p>
+<p>「本日のニューロン制限 10,000 を超えました。プランをアップグレードする」</p>
+<p>黄色い警告です。超えたということは、課金されるのでは。そう思って、血の気が引きました。</p>
+<p>調べてみると、答えは拍子抜けするものでした。</p>
+<ul>
+<li><strong>Workers Free</strong>:上限を超えると、その日の生成がエラーで止まる。課金はされない</li>
+<li><strong>Workers Paid</strong>:超えた分だけが従量課金。単価は1,000ニューロンあたり $0.011</li>
+</ul>
+<p>自分は無料プランなので、何も起きませんでした。止まっただけです。</p>
+<p>とりあえず、一安心。冷や汗はかきましたが、請求は増えません。課金を避けたい人は、この無料プランで続けるのが安全です。</p>
+<p># もし、有料プランだったら<br>念のため、有料プランの場合の計算も書いておきます。</p>
+<ul>
+<li>高精度を調子に乗って回し、一晩で約11,000ニューロンを使ったとします</li>
+<li>無料枠は10,000なので、超過は約1,000ニューロンです</li>
+<li>単価は1,000ニューロンあたり $0.011 なので、超過分は約$0.011</li>
+</ul>
+<p>たとえば、1,500ニューロンの超過なら、約$0.02です。数字だけ見ると小さいですが、「いつの間にか請求が出る」のが不安な人は、無料プランのままがいちばんです。</p>
+<h2>コストの現実:1日10,000ニューロンで、何枚作れるか</h2>
+<p>無料枠は1日10,000ニューロンです。何枚作れるかは、モデルで大きく変わります。簡易モードなら約57枚、高精度モードなら7枚前後です。</p>
+<ul>
+<li><strong>FLUX.1 schnell</strong>(使う場面:簡易(枚数を回す)、1枚あたり(ニューロン):約173、1日の目安(枚):約57、根拠:ダッシュボードの実測)</li>
+<li><strong>FLUX.2 klein 4B</strong>(使う場面:参考画像ありの簡易、1枚あたり(ニューロン):約110、1日の目安(枚):約90、根拠:価格表から計算(未実測))</li>
+<li><strong>FLUX.2 klein 9B</strong>(使う場面:高精度(仕上げ)、1枚あたり(ニューロン):約1,364、1日の目安(枚):約7、根拠:価格表から計算(ダッシュボードとも整合))</li>
+</ul>
+<p>SDXL Lightning(ネガティブ用)は、価格が公開されていないので表に入れていません。</p>
+<p>1日の目安は、10,000を1枚あたりの数字で割って、小数点以下を切り捨てたものです。10,000 ÷ 173 は約57.8、10,000 ÷ 110 は約90.9、10,000 ÷ 1,364 は約7.3になります。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/workers-ai/38_fig_cost.png" alt="無料枠(1日10,000ニューロン)で作れる枚数。schnellは約57枚、klein 4Bは約90枚(未実測)、klein 9Bは約7枚" width="720" /></p>
+<p>高精度モードの消費は、簡易の約8倍です。いったん調子に乗って高精度を回すと、あっという間に枠を使い切ります。実際には、一晩で約11,000ニューロンを使いました。</p>
+<p>なお、2026年11月9日時点のCloudflare公式料金表では、Workers Paidの無料割当超過分は1,000ニューロンあたり $0.011 です。Workers Paid自体の月額料金や、別の有料サービスの費用とは分けて考える必要があります。無料で試したいなら、対象モデルが無料プランで使えることも先に確認します。</p>
+<h2>ダッシュボードの数字は、少し遅れてやってくる</h2>
+<p>ここで、はっきり伝えておきたいことがあります。</p>
+<ul>
+<li>ダッシュボードの使用量は、少し遅れて反映される</li>
+<li>こちらで表示している「推定使用量」は、あくまで目安です</li>
+</ul>
+<p>使い切ったところでダッシュボードを見ると、「あと少し残っている」ように見えることがあります。高精度モードは、残りが少ないときは避けるのが安全です。</p>
+<h2>同じ失敗を避けるための、4つの習慣</h2>
+<p>5つの失敗と1つの焦りから、私が持ち帰った習慣を、並べておきます。</p>
+<ol>
+<li><strong>エラー文は、そのまま全部読む</strong>。5006も3030も、原因はエラー文に書いてありました</li>
+<li><strong>モデルを替えたら、入力の形も見直す</strong>。同じ呼び方が、別のモデルでも通るとは限りません</li>
+<li><strong>見積もりは疑い、実測を基準にする</strong>。ダッシュボードの数字は少し遅れるので、残りがぎりぎりのときは高精度を避けます</li>
+<li><strong>高精度は、残りを見てから回す</strong>。1枚で、簡易の約8倍を使います</li>
+</ol>
+<h2>まとめ：止まるだけ。だから、安心して遊べる</h2>
+<p>最初にあげた5つの失敗は、エラー文と使用量を一つずつ見れば対処の糸口がありました。無料枠の超過も、対象モデルをWorkers Freeで利用している範囲では、追加課金ではなく、その日の生成が制限されます。ただし、モデルによっては有料の支払方法が必要で、別の有料機能はこの話に含めません。</p>
+<p>この実験で学んだことは、次の3つです。</p>
+<ul>
+<li>モデルごとにできることが違う。振り分ける</li>
+<li>見積もりより、ダッシュボードの実測を信じる</li>
+<li>高精度モードは、簡易の約8倍を使う。回すときは残量を見る</li>
+</ul>
+<p>無料で、自分だけの画像生成ツール。エラーを踏むだけの価値は、あります。</p>
+<h2>次回予告</h2>
+<p>次は、セキュリティをさらに固める話を、改めて書きます。入口に門をつけただけで終わりにせず、何に気をつければいいのかを整理していきます。</p>
+<h2>この連載の記事</h2>
+<ul>
+<li>テスト編</li>
+<li>構築編</li>
+<li><strong>失敗とコスト編(この記事)</strong></li>
+</ul>
+<h2>関連する本(PR)</h2>
+<p>画像生成AIを使いこなすための活用ガイド。</p>
+<p><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F18798748%2F" rel="nofollow"><img src="https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/8859/9784297158859_1_22.jpg" alt="Nano Banana 100％活用ガイド　［Geminiではじめる画像生成AI活用術］ [ リンクアップ ]" width="200" /></a></p><p>Nano Banana 100％活用ガイド　［Geminiではじめる画像生成AI活用術］ [ リンクアップ ]<br><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F18798748%2F" rel="nofollow">楽天市場で見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857739&amp;p_id=1225&amp;pc_id=1925&amp;pl_id=27061&amp;url=https%3A%2F%2Fshopping.yahoo.co.jp%2Fsearch%3Ffirst%3D1%26p%3DNano%2520Banana%2520100%25EF%25BC%2585%25E6%25B4%25BB%25E7%2594%25A8%25E3%2582%25AC%25E3%2582%25A4%25E3%2583%2589%25E3%2580%2580%25EF%25BC%25BBGemini%25E3%2581%25A7%25E3%2581%25AF%25E3%2581%2598%25E3%2582%2581%25E3%2582%258B%25E7%2594%25BB%25E5%2583%258F%25E7%2594%259F%25E6%2588%2590AI%25E6%25B4%25BB%25E7%2594%25A8%25E8%25A1%2593%25EF%25BC%25BD%2520%255B%2520%25E3%2583%25AA%25E3%2583%25B3%25E3%2582%25AF%25E3%2582%25A2%25E3%2583%2583%25E3%2583%2597%2520%255D" rel="nofollow">Yahoo!ショッピングで見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857749&amp;p_id=170&amp;pc_id=185&amp;pl_id=27060&amp;url=https%3A%2F%2Fwww.amazon.co.jp%2Fs%2Fref%3Dnb_sb_noss_1%3F__mk_ja_JP%3D%25E3%2582%25AB%25E3%2582%25BF%25E3%2582%25AB%25E3%2583%258A%26url%3Dsearch-alias%253Daps%26field-keywords%3DNano%2520Banana%2520100%25EF%25BC%2585%25E6%25B4%25BB%25E7%2594%25A8%25E3%2582%25AC%25E3%2582%25A4%25E3%2583%2589%25E3%2580%2580%25EF%25BC%25BBGemini%25E3%2581%25A7%25E3%2581%25AF%25E3%2581%2598%25E3%2582%2581%25E3%2582%258B%25E7%2594%25BB%25E5%2583%258F%25E7%2594%259F%25E6%2588%2590AI%25E6%25B4%25BB%25E7%2594%25A8%25E8%25A1%2593%25EF%25BC%25BD%2520%255B%2520%25E3%2583%25AA%25E3%2583%25B3%25E3%2582%25AF%25E3%2582%25A2%25E3%2583%2583%25E3%2583%2597%2520%255D" rel="nofollow">Amazonで見る</a></p>
+
+<h2>出典</h2>
+<ul>
+<li>Cloudflare「Workers AI 料金」(公式ドキュメント、2026年10月に確認)</li>
+<li>筆者の実測：ダッシュボードのニューロン使用量と、画像1枚あたりの消費(2026年10月)</li>
+<li>筆者の計算：価格表をもとにした、モデルごとの1枚あたりの消費と1日の目安</li>
+</ul>
+<p>本記事にはアフィリエイトリンク(広告)を含みます。<br>Amazonのアソシエイトとして、daidalabox｜京都のエンジニアのラボは適格販売により収入を得ています。<br>プライバシーポリシー:https://note.com/daidalabox/n/nbf59032b9fc9</p></div></body></html>

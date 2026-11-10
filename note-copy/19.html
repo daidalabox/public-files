@@ -1,0 +1,80 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>19 PHPを使っている方は早急に対応して</title>
+<style>body{font-family:sans-serif;max-width:820px;margin:0 auto;padding:16px;line-height:1.8}#c{padding:10px 18px;font-size:16px;background:#0a7;color:#fff;border:0;border-radius:6px;position:sticky;top:8px}img{max-width:100%;height:auto}</style></head><body>
+<button id="c" onclick="var e=document.getElementById('body'),r=document.createRange();r.selectNodeContents(e);var s=getSelection();s.removeAllRanges();s.addRange(r);var ok=false;try{ok=document.execCommand('copy')}catch(_){};this.textContent=ok?'コピー済み':'コピー失敗'">本文をコピー</button>
+<div id="body"><p><small>※この記事にはプロモーション(アフィリエイト広告)を含みます。</small></p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/php/19_cover_neon.png" alt="PHPを使っている方は早急に対応して" width="720" /></p>
+<p><strong>結論:PHPを、8.5.12 / 8.4.27 / 8.3.36 / 8.2.35 以上に更新し、PHP-FPMかWebサーバーを再起動してください。8.1以下は通常の公式リリースで修正版が提供されないため、OS・保守ベンダーのバックポート適用状況を確認し、可能ならサポート対象の系列へ移してください。更新までの間は外部公開を制限してください。</strong></p>
+<p>2026年10月21日、PHPの開発チームが緊急の修正版を出しました。対象は「PHP2Shell」と呼ばれる2件の脆弱性(CVE-2026-109618と109619)で、深刻度はどちらもCVSS v4.0で9.2です。ログインなしで、外からサーバー上のプログラムを動かされるおそれがあります。</p>
+<p>アプリではなくPHPそのものの問題です。WordPressやLaravelを最新にしても、PHPを更新しなければ直りません。この記事は、サーバーを管理する技術者向けに、対象の見分け方と、今日やることをまとめたものです。</p>
+<h2>この記事でわかること</h2>
+<ul>
+<li>対象かどうかは、PHPのバージョンと動かし方で決まる</li>
+<li>根本対策は「修正版に更新して、再起動」だけ</li>
+<li>更新できないものは外から隠し、侵入の跡を確かめる</li>
+</ul>
+<h2>自分の環境は対象か</h2>
+<p>各系列で、修正版より古いものはすべて対象です。修正版と同じか新しければ、今回の件は対策済みです。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/php2shell/versions.png" alt="自分のPHPは対象か" width="720" /></p>
+<p>確認は、サーバーで php -v を実行します。ただし、コマンドで見えるPHPと、Webで動いているPHPが別のことがあります。Webで動いている側は、phpinfo の表示か、WordPressなら管理画面の「サイトヘルス」で確かめてください。</p>
+<p>8.1以下は、公式の通常の修正版が出ません。重大さを考えて、7.4・8.0・8.1向けに最小限の修正ソースが公開されましたが、実際には自分でビルドするか、OSやLTSベンダーのパッケージに頼ることになります。</p>
+<h2>動かし方で、危なさはどう変わるか</h2>
+<p>PHPの開発チームは、<strong>Apacheにmod_phpで組み込んだ構成</strong>を最も危ないとしています。アプリのコードが動く前に、認証のないリクエストで攻撃が成り立つことが実証されています。</p>
+<p>PHP-FPM、php-cgi、LiteSpeed、FrankenPHPの構成も対象です。一方で、PHP-FPMでは1件目(109618)の完全な攻撃は示されていない、という見方もあります。Red HatはRHELの標準がPHP-FPMであることを理由に、深刻度を「Important」としています(CVSS v3で8.1。NVDは9.8)。</p>
+<p>ただし、「FPMだから大丈夫」とは考えないでください。2件目(109619)は別の不具合で、FPMでも対象です。どちらの構成でも、更新が前提です。</p>
+<h2>今日やること:洗い出して、更新して、再起動する</h2>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/php2shell/steps.png" alt="今日やることの順番" width="720" /></p>
+<p>1つ目は、<strong>PHPの入っている場所の洗い出し</strong>です。Webサーバーだけでなく、cPanelやPleskなどの管理パネル、ベンダー製の機器、Windowsのソフトに同梱されたPHPも対象になります。たとえばPalo Alto Networksは、自社のPAN-OSとPanoramaが影響を受けると公表しています。</p>
+<p>2つ目は、<strong>修正版への更新と再起動</strong>です。パッケージを更新しただけでは、動いているプロセスは古いままです。PHP-FPMかWebサーバーを再起動し、もう一度Web側のバージョンを確かめてください。</p>
+<p>OSのパッケージは、対応にばらつきがあります。10月22日早朝の時点で、Debian 12・13は修正済み、RHEL 9は一部のみ、RHEL 10とRocky Linuxは未修正、AlmaLinuxは修正版がテスト用リポジトリにある段階でした。自分のOSの最新のお知らせを確認してください。</p>
+<p>レンタルサーバーなら、まず事業者のお知らせを見ます。国内の各社も、PHPの更新や緊急メンテナンスを進めています。8.1以下を選んでいる場合は、自分で8.2以降に切り替える必要があります。テーマやプラグインが古いと表示が崩れることがあるため、切り替えの前にバックアップを取ってください。</p>
+<h2>すぐ更新できないときは、どう時間を稼ぐか</h2>
+<p>完全な回避策はありません。PHPの開発チームも、安全な選択は更新だけとしています。そのうえで、更新までの間に攻撃の経路を減らす設定が示されています。</p>
+<p>1件目(109618)向けの設定です。</p>
+<ul>
+<li>memory_limit=-1 を、アプリから上書きできない形で設定する(メモリの上限はコンテナやcgroupで掛ける)</li>
+<li>post_max_size を下げる(ファイルのアップロードがなければ8M、あれば32M)</li>
+<li>Webサーバーやプロキシで、リクエストの大きさと数を制限する</li>
+</ul>
+<p>2件目(109619)向けの設定です。</p>
+<ul>
+<li>session.upload_progress.enabled=0 にして、すべてのワーカーを再起動する</li>
+<li>PHP 8.5なら fatal_error_backtraces=0 にする</li>
+</ul>
+<p>それでも足りないので、<strong>更新できないサーバーは、公開ネットワークから外すか、VPNやWAFの内側に置いてください</strong>。</p>
+<h2>侵入されていないかを、どう確かめるか</h2>
+<p>この攻撃は、アプリのコードが動く前に起きることがあります。アプリのログだけでは気づけないため、<strong>侵入した後の動き</strong>を見ます。</p>
+<p>php-fpm、php-cgi、httpd、apache2 のプロセスから、シェル・スクリプトの実行環境・curlやwgetが起動していたら警戒してください。見つかったら、サーバーを切り離してログを保全し、次を調べます。</p>
+<ul>
+<li>Webの公開フォルダに増えたファイル(Webシェル)</li>
+<li>新しいcronジョブやタスク</li>
+<li>見覚えのないアカウント</li>
+</ul>
+<h2>悪用はもう始まっているのか</h2>
+<p>情報が錯綜しています。10月21日の時点で、PHPの開発チームは実際の悪用を報告しておらず、米国のCISAも悪用済みの一覧に入れていません。一方で、AikidoやPatchstackは、実際の攻撃を確認したと述べています(詳細は未公開)。</p>
+<p>今回は、予定されていた公表日(10月22日)の2日前に情報が漏れ、修正版は予定より1日早い21日に出ました。2024年にPHPのCGIモードで見つかった脆弱性では、公表から24時間以内に攻撃の試みが観測されました。<strong>「公式に悪用が確認されてから」では遅い</strong>と考えて、今日のうちに手を付けてください。</p>
+<h2>まとめ</h2>
+<ul>
+<li>修正版は 8.5.12 / 8.4.27 / 8.3.36 / 8.2.35。更新したら、必ず再起動してWeb側で確かめる</li>
+<li>8.1以下は通常の公式修正版がない。ベンダーのバックポートを確認し、サポート対象の系列へ移行。更新できなければ公開範囲を制限する</li>
+<li>設定での緩和は時間稼ぎ。PHPの処理から外部コマンドが動いていないかも見る</li>
+</ul>
+<h2>明日からの一歩</h2>
+<p>まずは、管理しているサーバーで php -v と、Web側のバージョン表示を並べて確かめてください。2つが違っていたら、そこが見落としやすい場所です。</p>
+<h2>障害が起きたときの体制づくりに</h2>
+<p>障害が起きたとき、誰が何をするか。社内の対応体制(CSIRT)を事例で作れる一冊です。</p>
+<p><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F16255630%2F" rel="nofollow"><img src="https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/1892/9784297111892.jpg" alt="今からはじめるインシデントレスポンスーー事例で学ぶ組織を守るCSIRTの作り方 [ 杉浦芳樹・萩原健太 ]" width="200" /></a></p><p>今からはじめるインシデントレスポンスーー事例で学ぶ組織を守るCSIRTの作り方 [ 杉浦芳樹・萩原健太 ]<br><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F16255630%2F" rel="nofollow">楽天市場で見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857739&amp;p_id=1225&amp;pc_id=1925&amp;pl_id=27061&amp;url=https%3A%2F%2Fshopping.yahoo.co.jp%2Fsearch%3Ffirst%3D1%26p%3D%25E4%25BB%258A%25E3%2581%258B%25E3%2582%2589%25E3%2581%25AF%25E3%2581%2598%25E3%2582%2581%25E3%2582%258B%25E3%2582%25A4%25E3%2583%25B3%25E3%2582%25B7%25E3%2583%2587%25E3%2583%25B3%25E3%2583%2588%25E3%2583%25AC%25E3%2582%25B9%25E3%2583%259D%25E3%2583%25B3%25E3%2582%25B9%25E3%2583%25BC%25E3%2583%25BC%25E4%25BA%258B%25E4%25BE%258B%25E3%2581%25A7%25E5%25AD%25A6%25E3%2581%25B6%25E7%25B5%2584%25E7%25B9%2594%25E3%2582%2592%25E5%25AE%2588%25E3%2582%258BCSIRT%25E3%2581%25AE%25E4%25BD%259C%25E3%2582%258A%25E6%2596%25B9%2520%255B%2520%25E6%259D%2589%25E6%25B5%25A6%25E8%258A%25B3%25E6%25A8%25B9%25E3%2583%25BB%25E8%2590%25A9%25E5%258E%259F%25E5%2581%25A5%25E5%25A4%25AA%2520%255D" rel="nofollow">Yahoo!ショッピングで見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857749&amp;p_id=170&amp;pc_id=185&amp;pl_id=27060&amp;url=https%3A%2F%2Fwww.amazon.co.jp%2Fs%2Fref%3Dnb_sb_noss_1%3F__mk_ja_JP%3D%25E3%2582%25AB%25E3%2582%25BF%25E3%2582%25AB%25E3%2583%258A%26url%3Dsearch-alias%253Daps%26field-keywords%3D%25E4%25BB%258A%25E3%2581%258B%25E3%2582%2589%25E3%2581%25AF%25E3%2581%2598%25E3%2582%2581%25E3%2582%258B%25E3%2582%25A4%25E3%2583%25B3%25E3%2582%25B7%25E3%2583%2587%25E3%2583%25B3%25E3%2583%2588%25E3%2583%25AC%25E3%2582%25B9%25E3%2583%259D%25E3%2583%25B3%25E3%2582%25B9%25E3%2583%25BC%25E3%2583%25BC%25E4%25BA%258B%25E4%25BE%258B%25E3%2581%25A7%25E5%25AD%25A6%25E3%2581%25B6%25E7%25B5%2584%25E7%25B9%2594%25E3%2582%2592%25E5%25AE%2588%25E3%2582%258BCSIRT%25E3%2581%25AE%25E4%25BD%259C%25E3%2582%258A%25E6%2596%25B9%2520%255B%2520%25E6%259D%2589%25E6%25B5%25A6%25E8%258A%25B3%25E6%25A8%25B9%25E3%2583%25BB%25E8%2590%25A9%25E5%258E%259F%25E5%2581%25A5%25E5%25A4%25AA%2520%255D" rel="nofollow">Amazonで見る</a></p>
+
+<h2>出典</h2>
+<ul>
+<li>PHPの開発チームのセキュリティ勧告(2026年10月21日)</li>
+<li>Help Net Security「PHP2Shell: Critical PHP vulnerabilities patched, update now!」</li>
+<li>SOCRadar「PHP2Shell: CVE-2026-109618 &amp; CVE-2026-109619」</li>
+<li>Red Hat Customer Portal「CVE-2026-109618」</li>
+<li>Abstract Security「PHP2Shell」</li>
+<li>Google Cloud ブログ「Responding to core PHP vulnerabilities」</li>
+<li>Zenn「PHP2Shellの対応状況まとめ:PHP本体、Linux、レンタルサーバ、KUSANAGI」</li>
+<li>セキュリティ対策Lab「PHPの重大な脆弱性 php2shell 修正版公開」</li>
+<li>ワードプレスプラクティス「PHPの脆弱性 php2shell とWordPressへの影響」</li>
+</ul>
+<p>本記事にはアフィリエイトリンク(広告)を含みます。<br>Amazonのアソシエイトとして、daidalabox｜京都のエンジニアのラボは適格販売により収入を得ています。<br>プライバシーポリシー:https://note.com/daidalabox/n/nbf59032b9fc9</p></div></body></html>

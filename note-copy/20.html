@@ -1,0 +1,72 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>20 あなたの会社にも、PHPは隠れている</title>
+<style>body{font-family:sans-serif;max-width:820px;margin:0 auto;padding:16px;line-height:1.8}#c{padding:10px 18px;font-size:16px;background:#0a7;color:#fff;border:0;border-radius:6px;position:sticky;top:8px}img{max-width:100%;height:auto}</style></head><body>
+<button id="c" onclick="var e=document.getElementById('body'),r=document.createRange();r.selectNodeContents(e);var s=getSelection();s.removeAllRanges();s.addRange(r);var ok=false;try{ok=document.execCommand('copy')}catch(_){};this.textContent=ok?'コピー済み':'コピー失敗'">本文をコピー</button>
+<div id="body"><p><small>※この記事にはプロモーション(アフィリエイト広告)を含みます。</small></p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/php/20_cover_neon.png" alt="あなたの会社にも、PHPは隠れている" width="720" /></p>
+<p><strong>使った覚えがなくても、PHPは動いている。経営者・事務長・総務の担当者向けに、見つけ方と業者への聞き方をまとめました。</strong></p>
+<p>2026年10月21日、PHPという仕組みに見つかった重大な欠陥「PHP2Shell」の修正版が出ました。ログインしなくても、外からサーバーを乗っ取られるおそれがあるものです。</p>
+<p>「うちはPHPなんて使っていない」と思った方ほど、注意が必要です。PHPは、会社のホームページから機器の設定画面まで、気づかないところで動いています。この記事は、システムを業者に任せている方に向けて、PHPがどこにあるかを確かめる手順と、業者に聞くことをまとめたものです。技術的な対応の詳細は、技術者向けの別の記事にまとめています。</p>
+<h2>この記事でわかること</h2>
+<ul>
+<li>PHPは、Webサイトの多くを裏で動かしている「エンジン」のような仕組み</li>
+<li>会社のホームページだけでなく、問い合わせフォームや社内のツール、機器の画面にも入っている</li>
+<li>自分で直す必要はない。自分で確かめる5つの方法と、業者に聞く3つの質問を押さえればよい</li>
+</ul>
+<h2>PHPとは何か、なぜ今さわがれているのか</h2>
+<p>PHPは、Webサイトや管理画面を裏で動かす仕組みです。車にたとえると、外から見える車体ではなく、中のエンジンにあたります。</p>
+<p>調査会社の集計では、使っている言語が分かるWebサイトのうち、<strong>約7割がPHP</strong>で動いています。それだけ広く使われている仕組みに、今回の欠陥が見つかりました。</p>
+<p>すでに攻撃も始まっています。大手のクラウド事業者は、公表の前から攻撃の試みを観測し、修正版が出た後には「広く悪用されている」と発表しました。攻撃の方法を示すプログラムも、ネット上に出回っています。</p>
+<h2>意外なところに入っているPHP</h2>
+<p>PHPは、次のような場所で動いていることがあります。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/php-hidden/hidden_map.png" alt="会社の中の「PHPの隠れ場所」(イメージ)" width="720" /></p>
+<p>外から見えるものでは、会社や施設のホームページ、求人ページ、ブログがあります。問い合わせや予約のフォーム、ネットショップの注文画面も、裏でPHPが動いていることが多い場所です。</p>
+<p>社内で使うものでは、ブラウザで開くファイル共有やWebメール、研修や顧客管理のツールがあります。</p>
+<p>気づきにくいのは、ルーターなどネットワーク機器の設定画面と、昔のキャンペーンや旧サイトのように、作ったまま放置しているページです。</p>
+<h2>なぜ「使っている覚えがない」のか</h2>
+<p>理由は単純で、PHPを入れたのが社内の人ではないからです。ホームページは制作会社が、機器は保守業者やメーカーが用意しています。社内には、何で動いているかを知っている人がいないことが多いのです。</p>
+<p>もう1つの落とし穴は、「サイトは最新にしている」という安心です。今回の欠陥は、サイトの中身ではなくエンジン側(PHPそのもの)にあります。<strong>サイトの中身を更新しても、PHPを更新しなければ直りません</strong>。</p>
+<h2>PHPが使われているか、自分で確かめる5つの方法</h2>
+<p>まずは、自分の会社のWebサイトで確かめてみましょう。上の方法ほど簡単です。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/php-hidden/checks.png" alt="PHPが使われているか、自分で確かめる5つの方法" width="720" /></p>
+<p><strong>1. アドレスを見る</strong><br>1. 会社のホームページを開き、お問い合わせや予約のページにも移ってみる<br>2. 画面上のアドレス欄を見る<br>3. アドレスの中に「.php」があれば、PHPで動いている手掛かりになります。ただし、表示されていないからといってPHPを使っていないとは限りません</p>
+<p><strong>2. ページのソースを見る(WordPressかどうか)</strong><br>1. パソコンのブラウザでホームページを開く<br>2. 画面の何もないところで右クリックし、「ページのソースを表示」を選ぶ<br>3. キーボードの Ctrl と F を同時に押し、「wp-content」と入れて検索する<br>4. 見つかれば、WordPressで作られたサイトです。WordPressはPHPで動いています</p>
+<p><strong>3. ブラウザの開発者ツールで見る(Chrome・Edge)</strong><br>1. ホームページを開いた状態で、キーボードの F12 を押す<br>2. 開いた画面の上の方にある「ネットワーク」を選ぶ<br>3. F5 を押してページを読み込み直す<br>4. 一覧の一番上の行をクリックし、「ヘッダー」の中の「レスポンス ヘッダー」を見る<br>5. 「X-Powered-By」の欄に「PHP」とあれば、PHPで動いている手掛かりになります。ただし、このヘッダーは非表示にできるため、見当たらなくてもPHP不使用とは判断できません。表示されたバージョンが実際のサーバー構成と一致するかも管理者に確認してください</p>
+<p><strong>4. WordPressの管理画面で見る(管理者の方)</strong><br>1. WordPressの管理画面にログインする<br>2. 左のメニューの「ツール」から「サイトヘルス」を開く<br>3. 「情報」を選び、「サーバー」を開く<br>4. 「PHPのバージョン」の欄を見る</p>
+<p><strong>5. レンタルサーバーの管理画面で見る</strong><br>1. ホームページを置いているレンタルサーバーの管理画面にログインする<br>2. 「PHPのバージョン」「PHP設定」などのメニューを開く<br>3. 設定されているバージョンを確かめる</p>
+<p>バージョンが分かったら、修正版と比べます。修正版は <strong>8.5.12、8.4.27、8.3.36、8.2.35</strong> です。同じ系列で、この数字より古ければ対象です。8.1以下は公式の修正版が出ないため、新しい版への切り替えが必要になります。</p>
+<p>機器の設定画面や社内のツールも、開いたときのアドレス欄に「.php」が出ていないか見てください。メーカーのお知らせのページで「PHP2Shell」と検索するのも有効です。</p>
+<p>ただし、<strong>どの方法でも見つからなかったからといって、「PHPがない」とは言い切れません</strong>。PHPを使っていることを、わざと表に出さない設定がよく使われているからです。最後は、業者に聞くのが確実です。</p>
+<h2>業者に聞く、3つの質問</h2>
+<p>自分でPHPを直す必要はありません。ホームページの制作会社、サーバーや機器の保守業者に、次の3つを聞けば十分です。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/php-hidden/questions.png" alt="業者に聞く、3つの質問" width="720" /></p>
+<p>1. <strong>PHPを使っていますか</strong>(ホームページ・ツール・機器のそれぞれについて)<br>2. <strong>修正版に更新しましたか</strong>(更新した後、再起動まで済んでいますか)<br>3. <strong>古くて更新できないものは、どうしますか</strong>(外から見えないようにするなどの対策はありますか)</p>
+<p>メールなら、次のように送れば伝わります。</p>
+<p>PHPの重大な脆弱性(PHP2Shell、CVE-2026-109618・109619)について、確認させてください。弊社のホームページと、御社で保守いただいているシステムで、PHPを使っているものはありますか。使っている場合、修正版への更新と再起動は済んでいますか。更新が難しいものがあれば、対策を教えてください。</p>
+<p>レンタルサーバーで自分で管理している場合は、事業者のお知らせを確認し、管理画面でPHPを修正版か新しい版に切り替えます。切り替えると表示が崩れることがあるため、事前にバックアップを取ってください。</p>
+<p>誰が担当しているか分からないものが見つかったら、まずは外から見えないように止められないかを相談してください。</p>
+<h2>今回で終わらせないために</h2>
+<p>今回洗い出したものは、そのまま「システムの台帳」として残しておきましょう。何が、どこで、どの業者の担当で動いているかの一覧です。</p>
+<p>欠陥は、これからも必ず見つかります。台帳があれば、次は一覧を見て、業者に聞くだけで済みます。</p>
+<h2>まとめ</h2>
+<ul>
+<li>PHPは、ホームページから問い合わせフォーム、社内のツール、機器の画面まで、意外なところで動いている</li>
+<li>自分で確かめる方法は5つ。ただし、見つからなくても「ない」とは言い切れないので、最後は業者に聞く</li>
+<li>聞くのは「使っているか・更新したか・古いものはどうするか」の3つ。あなたの会社には、PHPがいくつありますか</li>
+</ul>
+<h2>明日からの一歩</h2>
+<p>今日のうちに、ホームページのアドレス欄とソースを見てみてください。そのうえで、制作会社と保守業者に、3つの質問をメールで送ってみましょう。</p>
+<h2>障害が起きたときの体制づくりに</h2>
+<p>障害が起きたとき、誰が何をするか。社内の対応体制(CSIRT)を事例で作れる一冊です。</p>
+<p><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F16255630%2F" rel="nofollow"><img src="https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/1892/9784297111892.jpg" alt="今からはじめるインシデントレスポンスーー事例で学ぶ組織を守るCSIRTの作り方 [ 杉浦芳樹・萩原健太 ]" width="200" /></a></p><p>今からはじめるインシデントレスポンスーー事例で学ぶ組織を守るCSIRTの作り方 [ 杉浦芳樹・萩原健太 ]<br><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F16255630%2F" rel="nofollow">楽天市場で見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857739&amp;p_id=1225&amp;pc_id=1925&amp;pl_id=27061&amp;url=https%3A%2F%2Fshopping.yahoo.co.jp%2Fsearch%3Ffirst%3D1%26p%3D%25E4%25BB%258A%25E3%2581%258B%25E3%2582%2589%25E3%2581%25AF%25E3%2581%2598%25E3%2582%2581%25E3%2582%258B%25E3%2582%25A4%25E3%2583%25B3%25E3%2582%25B7%25E3%2583%2587%25E3%2583%25B3%25E3%2583%2588%25E3%2583%25AC%25E3%2582%25B9%25E3%2583%259D%25E3%2583%25B3%25E3%2582%25B9%25E3%2583%25BC%25E3%2583%25BC%25E4%25BA%258B%25E4%25BE%258B%25E3%2581%25A7%25E5%25AD%25A6%25E3%2581%25B6%25E7%25B5%2584%25E7%25B9%2594%25E3%2582%2592%25E5%25AE%2588%25E3%2582%258BCSIRT%25E3%2581%25AE%25E4%25BD%259C%25E3%2582%258A%25E6%2596%25B9%2520%255B%2520%25E6%259D%2589%25E6%25B5%25A6%25E8%258A%25B3%25E6%25A8%25B9%25E3%2583%25BB%25E8%2590%25A9%25E5%258E%259F%25E5%2581%25A5%25E5%25A4%25AA%2520%255D" rel="nofollow">Yahoo!ショッピングで見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857749&amp;p_id=170&amp;pc_id=185&amp;pl_id=27060&amp;url=https%3A%2F%2Fwww.amazon.co.jp%2Fs%2Fref%3Dnb_sb_noss_1%3F__mk_ja_JP%3D%25E3%2582%25AB%25E3%2582%25BF%25E3%2582%25AB%25E3%2583%258A%26url%3Dsearch-alias%253Daps%26field-keywords%3D%25E4%25BB%258A%25E3%2581%258B%25E3%2582%2589%25E3%2581%25AF%25E3%2581%2598%25E3%2582%2581%25E3%2582%258B%25E3%2582%25A4%25E3%2583%25B3%25E3%2582%25B7%25E3%2583%2587%25E3%2583%25B3%25E3%2583%2588%25E3%2583%25AC%25E3%2582%25B9%25E3%2583%259D%25E3%2583%25B3%25E3%2582%25B9%25E3%2583%25BC%25E3%2583%25BC%25E4%25BA%258B%25E4%25BE%258B%25E3%2581%25A7%25E5%25AD%25A6%25E3%2581%25B6%25E7%25B5%2584%25E7%25B9%2594%25E3%2582%2592%25E5%25AE%2588%25E3%2582%258BCSIRT%25E3%2581%25AE%25E4%25BD%259C%25E3%2582%258A%25E6%2596%25B9%2520%255B%2520%25E6%259D%2589%25E6%25B5%25A6%25E8%258A%25B3%25E6%25A8%25B9%25E3%2583%25BB%25E8%2590%25A9%25E5%258E%259F%25E5%2581%25A5%25E5%25A4%25AA%2520%255D" rel="nofollow">Amazonで見る</a></p>
+
+<h2>出典</h2>
+<ul>
+<li>PHPの開発チームのセキュリティ勧告(2026年10月21日)</li>
+<li>Amazon Web Services セキュリティブログ「Amazon Threat Intelligence identifies PHP2Shell exploitation prior to public disclosure in MadPot」</li>
+<li>Tenable「php2shell Frequently Asked Questions」</li>
+<li>SecurityOnline「PHP2Shell Exploited in the Wild as PoC Exploits and Full Details Go Public」</li>
+<li>SOCRadar「PHP2Shell: CVE-2026-109618 &amp; CVE-2026-109619」</li>
+<li>ワードプレスプラクティス「PHPの脆弱性 php2shell とWordPressへの影響」</li>
+</ul>
+<p>本記事にはアフィリエイトリンク(広告)を含みます。<br>Amazonのアソシエイトとして、daidalabox｜京都のエンジニアのラボは適格販売により収入を得ています。<br>プライバシーポリシー:https://note.com/daidalabox/n/nbf59032b9fc9</p></div></body></html>

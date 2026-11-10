@@ -1,0 +1,309 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>36 Cloudflare Workers AI(テスト編)</title>
+<style>body{font-family:sans-serif;max-width:820px;margin:0 auto;padding:16px;line-height:1.8}#c{padding:10px 18px;font-size:16px;background:#0a7;color:#fff;border:0;border-radius:6px;position:sticky;top:8px}img{max-width:100%;height:auto}</style></head><body>
+<button id="c" onclick="var e=document.getElementById('body'),r=document.createRange();r.selectNodeContents(e);var s=getSelection();s.removeAllRanges();s.addRange(r);var ok=false;try{ok=document.execCommand('copy')}catch(_){};this.textContent=ok?'コピー済み':'コピー失敗'">本文をコピー</button>
+<div id="body"><p><small>※この記事にはプロモーション(アフィリエイト広告)を含みます。</small></p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/workers-ai/36_cover_neon.png" alt="連載「Cloudflare Workers AI」テスト編" width="720" /></p>
+<p>月額0円、サーバーなし、コードは1ファイルだけ。それで、自分専用のAIチャットが立ち上がります。しかも、そのチャットはホームページにも埋め込めます。</p>
+<p>毎日AIを使っているのに、チャット画面はいつも借り物。自分の手元に、好きなように育てられる画面がほしい。そう思って、CloudflareのWorkers AIで作ってみました。</p>
+<p>ただし、先に白状します。私は途中で2回、見事にこけました。原因はどちらも同じで、<strong>AIの答えをそのままコピペしたから</strong>です(笑)。その顛末も、全部書きます。</p>
+<p>連載「Cloudflare Workers AI」の第1回、テスト編です。次回の構築編では、同じ仕組みで画像生成ツールを作ります。その前に、まずは文字のチャットで、土台の動きを確かめておきましょう。</p>
+<h2>この記事でわかること</h2>
+<ul>
+<li>ダッシュボードだけで、無料でAIチャットを立ち上げる手順(コード全文つき)</li>
+<li>私がハマった2か所と、その直し方</li>
+<li>作ったあとに広がること(サイトへの埋め込み、資料を読ませる、など)</li>
+</ul>
+<h2>Workers AIって何？ まずは30秒で</h2>
+<p>Workers AIは、サーバーを用意せずに、AIモデルをAPIで呼び出せるCloudflareのサービスです。Workerと呼ばれる小さなプログラムから、数行でAIに質問できます。</p>
+<p>気になるお金の話は、ここが一番のポイントです。<strong>1日10,000ニューロン(AIの利用量を測る単位)までは無料</strong>で、毎日リセットされます。私の試算では、短いやり取り1往復が10ニューロン前後ですが、これは当時の仮計算で、一般的な消費量を保証する数字ではありません。考えてから答えるタイプのモデルは、考えた分も消費するので、実際はもっと減るかもしれません。使うモデルや返事の長さで大きく変わるので、あくまで目安です。2026年11月9日に確認した公式料金ページでも、無料枠は1日10,000ニューロンです。ただしモデルごとの単価や支払方法の要件が異なり、特定モデルでは有料の支払方法またはAI Gatewayのプリペイドクレジットが必要です。最新の料金は、公式の料金ページで確認してください。</p>
+<p>使った分は、ダッシュボード左メニューの「AI」から「Workers AI」を開くと確認できます。公式の案内でも、ニューロンの使用量はこの画面で見られるとされています。1日の上限に近づいていないか、ときどき見ておくと安心です。</p>
+<p>無料プランのままなら、枠を使い切っても、勝手に課金されることはありません。上限を超えると、AIの呼び出しがエラーで失敗し、チャットが返事を返さなくなるだけです。翌日のリセット(日本時間の朝9時)で、また使えるようになります。通常のWorkers AI利用では、無料枠を超えて継続するにはWorkers Paid等の課金設定が必要です。ただし一部のモデルは支払方法の設定が必須で、AI Gatewayのプリペイド課金を利用する構成もあります。モデルごとの条件を事前に確認してください。</p>
+<p>必要なのは、Cloudflareのアカウントだけです。私はドメインを買ったときのアカウントで、そのまま使えました。無料プランのままで大丈夫です。</p>
+<blockquote>
+<p>ここだけ覚えて帰ってください。無料枠内で、無料で利用可能なモデルを選んで試すなら、AI推論の追加料金を抑えられます。料金条件はモデルごとに確認してください。</p>
+</blockquote>
+<p># この記事で作るもの<br>先に完成形を描いておきます。登場人物は3つだけです。</p>
+<ol>
+<li><strong>ブラウザのチャット画面</strong>:メッセージを打って送るだけの、簡単な画面</li>
+<li><strong>Worker</strong>:画面を配り、質問をAIに取り次ぐ小さなプログラム(1ファイル)</li>
+<li><strong>Workers AI</strong>:実際に答えを考えるAIモデル</li>
+</ol>
+<p>利用者が画面で質問を送ると、Workerが受け取ってAIに渡し、返ってきた答えを画面に戻す。この一往復が、チャットの正体です。むずかしいところは、ほとんどありません。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/fig_chat.png" alt="自分専用チャットのしくみ(筆者の整理)" width="720" /></p>
+<h2>土台を作る。Hello Worldで2分</h2>
+<p>土台になるWorkerは、ダッシュボードで「Hello World」を選んで名前を付けるだけで作れます。コードは1行も書きません。</p>
+<ol>
+<li>Cloudflareにログインし、左メニューの「コンピュート」から「Workers &amp; Pages」を開く</li>
+<li>右上の青いボタン「アプリケーションを作成する」を押す</li>
+<li>「Hello World を開始する」を選ぶ(テンプレート一覧ではなく、上のほうの選択肢です)</li>
+<li>Workerの名前を入れる。私は `my-ai-worker` にしました。あとで消す前提だったので気軽に付けています</li>
+<li>「デプロイ」を押す</li>
+</ol>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_deploy.png" alt="Deploy Hello Worldの名前入力画面(アカウント名の部分は伏せています)" width="720" /></p>
+<p>途中に「Cloudflare Accessで保護」というスイッチが出ますが、今回はオフのままにしました。試して消すだけなら、保護はいりません。ただし、オフのままだとURLを知っている人は誰でも使えます。この話は最後の章で改めて書きます。</p>
+<blockquote>
+<p>ここだけ覚えて帰ってください。この時点では、まだAIにつながっていません。URLを開いても「Hello World!」と出るだけです。</p>
+</blockquote>
+<h2>AIをつなぐ。ここだけは名前が命</h2>
+<p>WorkerにAIを使う権利を渡す操作を、バインディングと呼びます。ここで付ける変数名と、コードでの呼び方が1文字でも違うと、動きません。そして私は、ここで最初にこけました。</p>
+<p>手順はこうです。</p>
+<ol>
+<li>作ったWorkerを開き、上のタブから「設定」を選ぶ</li>
+<li>「バインディング」の「バインディングを追加」を押す</li>
+<li>一覧から「Workers AI」を選ぶ</li>
+<li>「変数名」の欄に、コードで使う名前を入れて「バインディングを追加」を押す</li>
+</ol>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_settings.png" alt="設定タブのバインディング欄。右上の「バインディングを追加」から始めます" width="720" /></p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_picker.png" alt="バインディングの種類を選ぶ画面。一覧から「Workers AI」を選びます" width="720" /></p>
+<p>AIに教わったコードは `env["AI"].run(...)` と呼ぶ形でした。つまり変数名は `AI` にしないといけません。</p>
+<p>ところが、私は変数名の欄に出ていたグレーの文字をそのまま信じて、追加ボタンを押してしまいました。そこには `MY_BINDING` と書かれていたのです。入力欄に最初から入っている薄い文字は、入力例(プレースホルダー)で、実際の値ではありません。それを値だと思い込んだ、というのが真相です。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_dialog.png" alt="変数名の欄に MY_BINDING が出ているところ。薄い文字は入力例です" width="720" /></p>
+<p>登録後の一覧を見ると、名前の欄はやはり `MY_BINDING`。コードは `AI` を呼んでいるのに、登録された名前は別物でした。気づいたのは、この画面をAIに見せて指摘してもらったときです。ここで一人で気づけたら格好よかったのですが(笑)。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_list.png" alt="MY_BINDING として登録された一覧(黄色い案内つき)" width="720" /></p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/fig_binding.png" alt="バインディングの名前を合わせる(筆者の整理)" width="720" /></p>
+<p>直し方は簡単です。</p>
+<ol>
+<li>一覧右端のゴミ箱アイコンで、`MY_BINDING` の行を削除する</li>
+<li>もう一度「バインディングを追加」から「Workers AI」を選ぶ</li>
+<li>変数名の欄をクリックして、自分で `AI` と打ち込む</li>
+<li>追加して、一覧の名前が `AI` になっていれば完了</li>
+</ol>
+<p>途中で黄色く「wrangler設定を更新してください」と出ますが、今回は無視して大丈夫です。Wranglerはコマンドラインで使う開発ツールで、ダッシュボードだけで作る今回の方法には関係がありません。</p>
+<blockquote>
+<p>ここだけ覚えて帰ってください。コードの `env["AI"]` と、バインディングの変数名 `AI` は、1文字も違わず同じにします。グレーの文字は例です。</p>
+</blockquote>
+<h2>チャット画面のコードを貼る。1ファイルで完結</h2>
+<p>チャットの画面と、AIに質問を渡す窓口は、1つのファイルにまとめました。前半がAIを呼ぶ窓口(`/api/chat`)、後半がブラウザに出すチャット画面(HTML)です。</p>
+<p>Workerの画面右上の「コードを編集する」を開き、エディタの中身を全部消して、次のコードを貼ります。</p>
+<pre><code>const MODEL = "@" + "cf/meta/llama-3.1-8b-instruct";
+
+export default {
+ async fetch(request, env) {
+ const url = new URL(request.url);
+
+ if (request.method === "POST" &amp;&amp; url.pathname === "/api/chat") {
+ const { messages } = await request.json();
+ const result = await env["AI"].run(MODEL, {
+ messages: [
+ { role: "system", content: "あなたは親切なアシスタントです。日本語で簡潔に答えてください。" },
+ ...messages,
+ ],
+ });
+ return Response.json({ reply: result.response });
+ }
+
+ return new Response(HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+ },
+};
+
+const HTML = `&lt;!doctype html&gt;
+&lt;html lang="ja"&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;meta name="viewport" content="width=device-width,initial-scale=1"&gt;
+&lt;title&gt;Workers AI チャット&lt;/title&gt;
+&lt;style&gt;
+ body{font-family:sans-serif;max-width:640px;margin:0 auto;padding:16px}
+ .log{border:1px solid gray;border-radius:8px;padding:12px;height:60vh;overflow:auto}
+ .u{color:blue;margin:8px 0}.a{margin:8px 0;white-space:pre-wrap}
+ form{display:flex;gap:8px;margin-top:12px}
+ input{flex:1;padding:10px;font-size:16px}
+ button{padding:10px 16px;font-size:16px}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h2&gt;Workers AI チャット&lt;/h2&gt;
+&lt;div class="log" id="log"&gt;&lt;/div&gt;
+&lt;form id="f"&gt;&lt;input id="q" placeholder="メッセージを入力" autocomplete="off"&gt;&lt;button&gt;送信&lt;/button&gt;&lt;/form&gt;
+&lt;script&gt;
+const log = document.getElementById("log");
+const messages = [];
+document.getElementById("f").addEventListener("submit", async (e) =&gt; {
+ e.preventDefault();
+ const q = document.getElementById("q");
+ const text = q.value.trim();
+ if (!text) return;
+ q.value = "";
+ messages.push({ role: "user", content: text });
+ log.insertAdjacentHTML("beforeend", '&lt;div class="u"&gt;&lt;/div&gt;');
+ log.lastChild.textContent = "あなた: " + text;
+ const res = await fetch("/api/chat", {
+ method: "POST",
+ headers: { "content-type": "application/json" },
+ body: JSON.stringify({ messages }),
+ });
+ const { reply } = await res.json();
+ messages.push({ role: "assistant", content: reply });
+ log.insertAdjacentHTML("beforeend", '&lt;div class="a"&gt;&lt;/div&gt;');
+ log.lastChild.textContent = "AI: " + reply;
+ log.scrollTop = log.scrollHeight;
+});
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;`;</code></pre>
+<p>1行目のモデル名が、`@` を2つに分けた書き方になっているのは、この記事の表記の都合です。貼ればそのまま、ひとつながりの名前として動きます。</p>
+<p>仕組みを、かんたんに読み解いておきます。</p>
+<ul>
+<li>`fetch` の中では、送られてきた要求が「`/api/chat` への POST」かどうかを見ています。そうならAIに質問し、そうでなければチャット画面(HTML)を返します</li>
+<li>`messages` は、これまでのやり取りの全部です。画面側が毎回、会話の履歴をまるごと送ってくるので、AIは前の話を踏まえて答えられます</li>
+<li>先頭の `system` の1行が、AIへの基本の指示です。ここを書き換えると、口調や役割を変えられます。「あなたは丁寧な敬語で答える相談役です」のように変えるだけで、人格が変わります</li>
+<li>画面側の表示は `textContent` で入れています。AIの返事をHTMLとして解釈させないためで、変なタグが混ざっても画面が崩れません</li>
+</ul>
+<p>このコードのモデル名は、次の章で痛い目に遭います。先に動く完成形を知りたい方は、「動いた」の章の差し替えを先にどうぞ。</p>
+<p>貼ったら、右上の「デプロイ」を押します。貼っただけでは反映されません。私は一度、ここで押し忘れました。URLを開いても「Hello World!」のままで、「あれ？」となったのは内緒です。</p>
+<p>もうひとつ、順番にも注意があります。<strong>バインディングを追加する前にチャットを送ると、AIが見つからないというエラーになります。</strong> 先に前の章を終わらせてください。</p>
+<blockquote>
+<p>ここだけ覚えて帰ってください。コードを貼ったら「デプロイ」。押さないと、画面は変わりません。</p>
+</blockquote>
+<h2>送信したら無反応。コンソールが赤く光った</h2>
+<p>バインディングを直し、コードを貼り、デプロイも済ませました。チャット画面は出ました。ところが、メッセージを送っても、返事が返ってきません。</p>
+<p>こういうときは、エディタ右側のプレビューの下にある「CONSOLE」欄を見ます。そこに、赤い文字でエラーが出ていました。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_console.png" alt="CONSOLE欄の赤いエラー表示。モデルが廃止された、という内容です(URLの部分は伏せています)" width="720" /></p>
+<p>読んでみると、言っていることは単純でした。<strong>私が使っていたLlama 3.1 8Bのモデルは、2026年5月30日に廃止されていた</strong>のです。代わりのモデルはモデルカタログで探してほしい、とも書いてありました。エラー文がとても親切です。</p>
+<p>つまり、2回目のこけ方は、1回目と同じでした。AIが教えてくれたコードを、そのままコピペして貼った。そのコードに書かれていたモデル名が、AIの知識の中では現役でも、現実にはもう古かったのです。AIも間違えます(笑)。</p>
+<p>ここで覚えておくと役に立つ、画面が無反応のときの見方を整理しておきます。</p>
+<ul>
+<li><strong>まずCONSOLE欄を見る</strong>:赤い文字があれば、そこに原因が書いてあります。英語でも、そのままAIに貼って聞けば、意味を教えてくれます</li>
+<li><strong>次にバインディングの名前を見る</strong>:設定タブの一覧で、名前が `AI` になっているか</li>
+<li><strong>それから、デプロイしたか</strong>:貼っただけで押し忘れていないか</li>
+<li><strong>最後に、モデル名</strong>:公式のカタログに、いまも載っているか</li>
+</ul>
+<p>今回は上から4番目で当たりでした。順番に潰していけば、迷いません。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/fig_debug.png" alt="送信しても無反応のときの確認の順番(筆者の整理)" width="720" /></p>
+<blockquote>
+<p>ここだけ覚えて帰ってください。AIのモデルには賞味期限があります。コードに書いたモデル名は、動かなくなったら疑って、公式のカタログで確かめましょう。</p>
+</blockquote>
+<h2>立て直す。モデルカタログで選び直す</h2>
+<p><strong>【2026年11月9日追記・重要】</strong>この記事で使用した <strong>@cf/qwen/qwen3-30b-a3b-fp8</strong> は、Cloudflareの2026年11月5日の告知で<strong>11月20日廃止予定</strong>となりました。11月20日以降はHTTP 410（エラー5028）になる予定です。以下は執筆当時の動作記録として残していますが、いま新規に構築する場合は公式モデルカタログから継続提供されるモデルを選び、モデルID・応答形式・料金を再確認してください。</p>
+<p>代わりのモデルは、公式のモデルカタログから選びます。私が開いたときは73個ありました。全部は読めないので、まず用途に合わないものを外していきました。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_catalog.png" alt="モデルカタログの一覧。私が開いたときは73個ありました" width="720" /></p>
+<ul>
+<li>状態と条件から判断や数値を返す特化型のモデル(会話には使えません)</li>
+<li>音声エージェント向けのモデル</li>
+<li>説明に出てくる言語が欧州中心で、日本語が期待しにくいモデル</li>
+</ul>
+<p>残った候補の中から、私は `qwen3-30b-a3b-fp8` を選びました。理由は3つです。</p>
+<ol>
+<li>現行のモデルで、廃止の表示が出ていない</li>
+<li>料金が安い</li>
+<li>Qwen系は日本語が比較的強い傾向がある(これは期待で、確かめるのはこれからです)</li>
+</ol>
+<p>料金は、公式の料金ページではこうなっています。比べた相手は、大きいぶん賢そうな `gpt-oss-120b` です。</p>
+<ul>
+<li><strong>qwen3-30b-a3b-fp8</strong>(入力(100万トークンあたり):$0.051、出力(100万トークンあたり):$0.335、ひとこと:今回の選択。推論に対応)</li>
+<li><strong>gpt-oss-120b</strong>(入力(100万トークンあたり):$0.35、出力(100万トークンあたり):$0.75、ひとこと:大きいが、入力の単価は約7倍)</li>
+</ul>
+<p>もうひとつの候補だったLlama 3.3 70Bの高速版は、ニューロン換算で `qwen3-30b-a3b-fp8` の約6〜7倍の消費でした。無料枠がすぐ尽きるので、今回は見送りです。</p>
+<p>カタログでモデルのページを開くと、モデル名がコードに書く正式な形で載っています。これをコピーしておきます。コードでは `cf/qwen/qwen3-30b-a3b-fp8` の先頭に `@` を付けた形になります。</p>
+<p>選び方をまとめると、こうなります。</p>
+<ul>
+<li><strong>まず「いま使えるか」</strong>:廃止の表示がないか</li>
+<li><strong>次に「用途」</strong>:会話なのか、画像なのか、音声なのか</li>
+<li><strong>それから「料金」</strong>:無料枠で遊ぶなら、小さめから試す</li>
+<li><strong>最後に「日本語」</strong>:説明の対応言語を見て、日本語が入っていそうか</li>
+</ul>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/fig_model.png" alt="モデルの選び方(筆者の整理)" width="720" /></p>
+<blockquote>
+<p>ここだけ覚えて帰ってください。モデルは「賢さ」だけでなく、「料金」と「用途」で選びます。無料枠で遊ぶなら、小さめから試すのが正解です。</p>
+</blockquote>
+<h2>動いた。日本語で返事が返ってきた</h2>
+<p>直す場所は、コードの2か所だけです。エディタで、1行目のモデル名と、返事を取り出す行を置き換えます。</p>
+<p>1行目(モデル名)を、これに差し替えます。</p>
+<pre><code>const MODEL = "@" + "cf/qwen/qwen3-30b-a3b-fp8";</code></pre>
+<p>返事を返す行(`return Response.json({ reply: result.response });`)を、これに差し替えます。</p>
+<pre><code>return Response.json({ reply: result.response ?? result.choices?.[0]?.message?.content ?? JSON.stringify(result) });</code></pre>
+<p>返事の行を変えたのは、新しいモデルは返事のデータの形が、以前のモデルと違うことがあるからです。どちらの形でも拾えるようにしておけば、取り出し方で悩まずに済みます。最後の `JSON.stringify(result)` は保険で、どちらの形でもなかったときは、中身をそのまま画面に出します。何が返ってきたのかが見えるので、調べるときの手がかりになります。</p>
+<p>右上の「デプロイ」を押して、チャットに「テスト」と送ってみます。</p>
+<p>返ってきました。「テストを受けました。何かご質問がありますか？」と、自然な日本語で。エラーも、新しい送信分からは出ていません。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_reply.png" alt="「テスト」に日本語で返事が返ったチャット画面" width="720" /></p>
+<p>お、割とすんなり動きましたね。</p>
+<p>ちなみに、動作確認でどれだけ無料枠を使ったのか。ダッシュボードの使用量欄を見ると、ログの記録(可観測性イベント)は33件で、1日の上限200,000件に対してごくわずかでした。ただしこれはログの件数で、AIの無料枠(ニューロン)とは別の数え方です。ニューロンの使用量は、左メニューの「AI」から「Workers AI」で確認できます。当時の私の画面では、使用ニューロンは66.72で、1日の無料枠10,000のうち約0.7%でした。これは実測画面の読み取りであり、直前の「1往復10ニューロン」という試算とは別の数字です。何回かチャットを試した程度なら、無料枠にはほとんど響きません。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_usage.png" alt="Workers AIの使用量画面。今日使ったニューロンは66.72でした" width="720" /></p>
+<blockquote>
+<p>ここだけ覚えて帰ってください。直すのは2か所だけ。モデル名と、返事の取り出し方です。</p>
+</blockquote>
+<h2>ちょっと待って。そのお店、本当にありますか？</h2>
+<p>調子に乗って、「京都駅近くのイタリアン探して」と聞いてみました。すると、それらしいお店の名前が3つ、雰囲気の説明つきで並びました。</p>
+<p><img src="https://raw.githubusercontent.com/daidalabox/public-files/main/cloudflare-workers-ai/shot_italian.png" alt="イタリアンを聞いたときの回答。それらしい店名が3つ並びました" width="720" /></p>
+<p>でも、これは信用してはいけません。このチャットは、ウェブを検索していません。モデルが学習した知識だけで答えているので、お店の名前も、実在するかどうか分からないのです。しかもこのモデルは2025年4月に公開されたもので、学習データは2025年3月ごろまでとされています(開発元の公式発表ではなく、第三者サイトの情報です)。回答の最後に「口コミや最新情報を確認してください」とあるのは、確認できないことの裏返しでした。</p>
+<p>というわけで、実際に調べてみました。京都駅から半径2km以内を、地図データと、グルメサイトで検索しました(2026年10月25日時点)。</p>
+<p>結果は、<strong>3つとも見つかりませんでした</strong>。AIが挙げた3つの店名のどれも、京都駅周辺に同じ名前のお店はありません。名前の似た別のお店は出てきましたが、どれも京都駅から離れた場所にありました。一方、京都駅直結の百貨店の10階には、実在するイタリアンがありました。AIは、実在する店名を挙げる代わりに、それらしい店名を作ってしまったようです。</p>
+<p>ただし、これは「どこにも存在しない」という証明ではありません。検索サイトや地図に載っていない小さなお店までは確かめられていません。AIが挙げた名前が、たまたま別の街に実在する可能性もあります。分かったのは、<strong>京都駅周辺では見つからなかった</strong>ところまでです。</p>
+<p>つまり、素のチャットが得意なのは、文章の下書き、要約、言い換え、考えを整理する相談相手のような仕事です。最新のお店の情報を調べるような仕事には、向いていません。</p>
+<p>素のチャットに試してみてよかった頼みごとを、並べておきます。</p>
+<ul>
+<li>「この文章を、もう少しやわらかい言い方に直して」</li>
+<li>「次の箇条書きを、3行の挨拶文にまとめて」</li>
+<li>「会議の議題を5つ、思いつくだけ出して」</li>
+</ul>
+<p>逆に、避けたほうがいい頼みごとはこちらです。</p>
+<ul>
+<li>「近くのお店を探して」「今日の営業時間は？」のような、最新の情報</li>
+<li>数字の根拠や、固有名詞を含む事実の確認</li>
+<li>法律・医療・お金に関わる判断の決め手</li>
+</ul>
+<p>ただ、ここには続きがあります。<strong>調べさせたい情報を、あらかじめ読み込ませておく</strong>という方法があります。次の章で触れます。</p>
+<blockquote>
+<p>ここだけ覚えて帰ってください。AIの答えは、最新情報や固有名詞ほど、確かめてから使います。</p>
+</blockquote>
+<h2>ここから先が本番。こんなことができますよ</h2>
+<p>ここまでで、自分専用のチャットは立ち上がりました。この章は、ここから広がる使い方の紹介です。公式のドキュメントで確認した範囲で書いていて、私自身はまだ試していない部分があります。その点は正直に書いておきます。</p>
+<p># 1. ホームページに埋め込む<br>いちばん手軽なのは、`iframe` で自分のサイトにチャット画面をはめ込む方法です。今回のWorkerは、ふつうのWebページを返しているだけなので、考え方としてはこれで済みます。</p>
+<pre><code>&lt;iframe src="自分のWorkerのURL" width="100%" height="600" style="border:0"&gt;&lt;/iframe&gt;</code></pre>
+<p>ただし、私は記事を書いた時点で、自分のサイトでの表示確認までは終えていません。公開する前に、必ず表示を確かめてください。また、誰でも使える状態になるので、使いすぎ対策(回数の制限など)も考える必要があります。</p>
+<p># 2. ホームページの内容を、あらかじめ読ませる<br>素のチャットは、先ほどのイタリアンのように、知らないことを知っているふりをします。そこで、自分のサイトの内容を先に読み込ませておけば、「料金は？」「対応エリアは？」といった質問に、サイトの内容に沿って答えさせられます。</p>
+<p>この仕組みを、RAG(検索で拾った資料を渡して答えさせる方法)と呼びます。CloudflareにはAI Search(旧AutoRAG)という機能があり、ウェブサイトをデータソースにできます。ページを自動で巡回して取り込んでくれます。条件は、同じCloudflareアカウントに登録済みのドメインであることです。</p>
+<p># 3. 社内マニュアルを読ませる<br>ファイルを読み込ませる方法もあります。R2というストレージのバケットから、Markdown、テキスト、HTML、PDF、Word、CSV、JSONを取り込めます。手順書を入れておけば、新人の質問に答える窓口になります。</p>
+<p># 4. 使い始める前の注意</p>
+<ul>
+<li>AI Search自体は、公開ベータの間は制限内で無料ですが、回答の生成にはWorkers AIの無料枠を使います。最新の条件は公式で確認してください</li>
+<li>社内マニュアルを読ませたチャットを、誰でも開けるURLのまま置いてはいけません。ログインした人だけに絞る設定(Cloudflare Access)を使います</li>
+<li>個人情報や機密を含む資料は、そもそも入れません。試すときは、公開してよい資料で</li>
+</ul>
+<blockquote>
+<p>ここだけ覚えて帰ってください。素のチャットに「自分の資料」を持たせると、できることが一気に広がります。ただし、公開範囲には気をつけて。</p>
+</blockquote>
+<h2>後片付け。試しただけなら、消しておく</h2>
+<p>今回のWorkerは、保護を付けていません。つまり、URLを知っている人なら誰でもチャットを使え、そのぶんは自分の無料枠から減っていきます。記事やSNSにURLを載せるのは避け、試し終わったら消しておくのが安全です。</p>
+<p>Workerの消し方は次のとおりです。</p>
+<ol>
+<li>消したいWorkerを開き、「設定」タブを選ぶ</li>
+<li>いちばん下の「危険ゾーン」まで移動する</li>
+<li>「削除」を押して、画面の案内に従う</li>
+</ol>
+<p>消すと、そのURLは使えなくなります。作り直したくなったら、またHello Worldから2分で戻れます。</p>
+<blockquote>
+<p>ここだけ覚えて帰ってください。試すのは気軽に、消すのも気軽に。公開したままにしないこと。</p>
+</blockquote>
+<h2>まとめ</h2>
+<ul>
+<li>月額0円、サーバーなし、コードは1ファイル。自分専用のAIチャットは、思っていたよりずっと手軽に立ち上がった</li>
+<li>こけた原因は2回とも、AIの答えをそのままコピペしたこと。名前を合わせ、モデルの賞味期限を疑い、画面のエラーを自分の目で読む</li>
+<li>素のチャットは最新情報や固有名詞が苦手。自分の資料を読ませる方法で、できることが広がる</li>
+<li>そして今回いちばんの収穫は、成功ではなく、こけた2回でした。AIが教えてくれたコードは、そのまま貼れば動く、とは限りません。この3つができれば、AIの答えは頼もしい相棒になります。</li>
+<li>自分の画面を持つと、次にやりたいことが自然に浮かんできます。サイトに埋め込む。資料を読ませる。専用の相談窓口に育てる。借り物ではない、自分の画面。ぜひ、2分から始めてみてください。</li>
+</ul>
+<h2>次回予告</h2>
+<p>次回の構築編では、同じ仕組みを使って、自分だけが使える画像生成ツールを作ります。Cloudflareのコネクタで設定をほぼ自動にして、入口には自分だけの門をつける。その作り方を書きます。</p>
+<h2>この連載の記事</h2>
+<ul>
+<li><strong>テスト編(この記事)</strong></li>
+<li>構築編</li>
+<li>失敗とコスト編</li>
+</ul>
+<h2>関連する本(PR)</h2>
+<p>Cloudflare Workersを基礎から実践まで学べる2冊。</p>
+<p><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F18491500%2F" rel="nofollow"><img src="https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/4387/9784297154387_1_23.jpg" alt="Web開発者のための［入門］Cloudflare Workers--JavaScript・TypeScriptの簡単・高速プラットフォーム [ 福岡 秀一郎（syumai） ]" width="200" /></a></p><p>Web開発者のための［入門］Cloudflare Workers--JavaScript・TypeScriptの簡単・高速プラットフォーム [ 福岡 秀一郎（syumai） ]<br><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F18491500%2F" rel="nofollow">楽天市場で見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857739&amp;p_id=1225&amp;pc_id=1925&amp;pl_id=27061&amp;url=https%3A%2F%2Fshopping.yahoo.co.jp%2Fsearch%3Ffirst%3D1%26p%3DWeb%25E9%2596%258B%25E7%2599%25BA%25E8%2580%2585%25E3%2581%25AE%25E3%2581%259F%25E3%2582%2581%25E3%2581%25AE%25EF%25BC%25BB%25E5%2585%25A5%25E9%2596%2580%25EF%25BC%25BDCloudflare%2520Workers--JavaScript%25E3%2583%25BBTypeScript%25E3%2581%25AE%25E7%25B0%25A1%25E5%258D%2598%25E3%2583%25BB%25E9%25AB%2598%25E9%2580%259F%25E3%2583%2597%25E3%2583%25A9%25E3%2583%2583%25E3%2583%2588%25E3%2583%2595%25E3%2582%25A9%25E3%2583%25BC%25E3%2583%25A0%2520%255B%2520%25E7%25A6%258F%25E5%25B2%25A1%2520%25E7%25A7%2580%25E4%25B8%2580%25E9%2583%258E%25EF%25BC%2588syumai%25EF%25BC%2589%2520%255D" rel="nofollow">Yahoo!ショッピングで見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857749&amp;p_id=170&amp;pc_id=185&amp;pl_id=27060&amp;url=https%3A%2F%2Fwww.amazon.co.jp%2Fs%2Fref%3Dnb_sb_noss_1%3F__mk_ja_JP%3D%25E3%2582%25AB%25E3%2582%25BF%25E3%2582%25AB%25E3%2583%258A%26url%3Dsearch-alias%253Daps%26field-keywords%3DWeb%25E9%2596%258B%25E7%2599%25BA%25E8%2580%2585%25E3%2581%25AE%25E3%2581%259F%25E3%2582%2581%25E3%2581%25AE%25EF%25BC%25BB%25E5%2585%25A5%25E9%2596%2580%25EF%25BC%25BDCloudflare%2520Workers--JavaScript%25E3%2583%25BBTypeScript%25E3%2581%25AE%25E7%25B0%25A1%25E5%258D%2598%25E3%2583%25BB%25E9%25AB%2598%25E9%2580%259F%25E3%2583%2597%25E3%2583%25A9%25E3%2583%2583%25E3%2583%2588%25E3%2583%2595%25E3%2582%25A9%25E3%2583%25BC%25E3%2583%25A0%2520%255B%2520%25E7%25A6%258F%25E5%25B2%25A1%2520%25E7%25A7%2580%25E4%25B8%2580%25E9%2583%258E%25EF%25BC%2588syumai%25EF%25BC%2589%2520%255D" rel="nofollow">Amazonで見る</a></p>
+
+<p><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F18585307%2F" rel="nofollow"><img src="https://thumbnail.image.rakuten.co.jp/@0_mall/book/cabinet/6787/9784297156787_1_34.jpg" alt="Cloudflare Workers 実践ガイド ～ エッジで実現するWebアプリケーションの設計・実装・運用 ～ [ 上島 愛史 ]" width="200" /></a></p><p>Cloudflare Workers 実践ガイド ～ エッジで実現するWebアプリケーションの設計・実装・運用 ～ [ 上島 愛史 ]<br><a href="https://af.moshimo.com/af/c/click?a_id=5853017&amp;p_id=54&amp;pc_id=54&amp;pl_id=27059&amp;url=https%3A%2F%2Fitem.rakuten.co.jp%2Fbook%2F18585307%2F" rel="nofollow">楽天市場で見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857739&amp;p_id=1225&amp;pc_id=1925&amp;pl_id=27061&amp;url=https%3A%2F%2Fshopping.yahoo.co.jp%2Fsearch%3Ffirst%3D1%26p%3DCloudflare%2520Workers%2520%25E5%25AE%259F%25E8%25B7%25B5%25E3%2582%25AC%25E3%2582%25A4%25E3%2583%2589%2520%25EF%25BD%259E%2520%25E3%2582%25A8%25E3%2583%2583%25E3%2582%25B8%25E3%2581%25A7%25E5%25AE%259F%25E7%258F%25BE%25E3%2581%2599%25E3%2582%258BWeb%25E3%2582%25A2%25E3%2583%2597%25E3%2583%25AA%25E3%2582%25B1%25E3%2583%25BC%25E3%2582%25B7%25E3%2583%25A7%25E3%2583%25B3%25E3%2581%25AE%25E8%25A8%25AD%25E8%25A8%2588%25E3%2583%25BB%25E5%25AE%259F%25E8%25A3%2585%25E3%2583%25BB%25E9%2581%258B%25E7%2594%25A8%2520%25EF%25BD%259E%2520%255B%2520%25E4%25B8%258A%25E5%25B3%25B6%2520%25E6%2584%259B%25E5%258F%25B2%2520%255D" rel="nofollow">Yahoo!ショッピングで見る</a> / <a href="https://af.moshimo.com/af/c/click?a_id=5857749&amp;p_id=170&amp;pc_id=185&amp;pl_id=27060&amp;url=https%3A%2F%2Fwww.amazon.co.jp%2Fs%2Fref%3Dnb_sb_noss_1%3F__mk_ja_JP%3D%25E3%2582%25AB%25E3%2582%25BF%25E3%2582%25AB%25E3%2583%258A%26url%3Dsearch-alias%253Daps%26field-keywords%3DCloudflare%2520Workers%2520%25E5%25AE%259F%25E8%25B7%25B5%25E3%2582%25AC%25E3%2582%25A4%25E3%2583%2589%2520%25EF%25BD%259E%2520%25E3%2582%25A8%25E3%2583%2583%25E3%2582%25B8%25E3%2581%25A7%25E5%25AE%259F%25E7%258F%25BE%25E3%2581%2599%25E3%2582%258BWeb%25E3%2582%25A2%25E3%2583%2597%25E3%2583%25AA%25E3%2582%25B1%25E3%2583%25BC%25E3%2582%25B7%25E3%2583%25A7%25E3%2583%25B3%25E3%2581%25AE%25E8%25A8%25AD%25E8%25A8%2588%25E3%2583%25BB%25E5%25AE%259F%25E8%25A3%2585%25E3%2583%25BB%25E9%2581%258B%25E7%2594%25A8%2520%25EF%25BD%259E%2520%255B%2520%25E4%25B8%258A%25E5%25B3%25B6%2520%25E6%2584%259B%25E5%258F%25B2%2520%255D" rel="nofollow">Amazonで見る</a></p>
+
+<h2>出典</h2>
+<ul>
+<li>Cloudflare「Workers AI 料金」(公式ドキュメント、2026年10月に確認)</li>
+<li>Cloudflare「Workers AI モデルカタログ」(公式ドキュメント、2026年10月に確認)</li>
+<li>Cloudflare「AI Search の制限と料金」(公式ドキュメント、2026年10月に確認)</li>
+<li>Cloudflare「ウェブサイトからRAGを作る」(公式チュートリアル、2026年10月に確認)</li>
+<li>筆者の実測：ダッシュボードのニューロン使用量、京都駅周辺の店名の検索(2026年10月25日)</li>
+</ul>
+<p>本記事にはアフィリエイトリンク(広告)を含みます。<br>Amazonのアソシエイトとして、daidalabox｜京都のエンジニアのラボは適格販売により収入を得ています。<br>プライバシーポリシー:https://note.com/daidalabox/n/nbf59032b9fc9</p></div></body></html>

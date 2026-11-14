@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
+  <channel>
+    <title>daidalabox</title>
+    <link>https://daidalabox.substack.com</link>
+    <description>English articles from daidalabox</description>
+    <language>en</language>
+    <item>
+      <title>Why More Software Can Mean More Manual Work</title>
+      <link>https://note.com/daidalabox/n/n4f83c3eabd30</link>
+      <description>Systems Without a Shared Direction, Part 1 of 3. How a 15-minute spreadsheet fix became a payroll bottleneck.</description>
+      <guid isPermaLink="false">urn:daidalabox:articles:no-vision:01-four-stages:en</guid>
+      <content:encoded>&lt;p&gt;&lt;em&gt;Systems Without a Shared Direction, Part 1 of 3. How a 15-minute spreadsheet fix became a payroll bottleneck.&lt;/em&gt;&lt;/p&gt;&lt;img class="cover" src="https://raw.githubusercontent.com/daidalabox/public-files/main/substack/no-vision-en-01/01_cover_en.jpg" alt="Why More Software Can Mean More Manual Work. Part 1 of 3."&gt;&lt;p&gt;“Why are we re-entering these numbers in Excel every month?”&lt;/p&gt;
+&lt;p&gt;It sounds like a simple question. In some workplaces, nobody can answer it. Each system made life easier when it was introduced. Years later, people are doing extra work to keep those same systems running together.&lt;/p&gt;
+&lt;p&gt;If you run a business, manage its back office, or look after its IT, this first installment offers a way to recognize that pattern. We’ll look at four stages of growing complexity and four reasons companies lose sight of how their systems fit together.&lt;/p&gt;
+&lt;p&gt;A &lt;a href="https://erp.intuit.com/blog/research/business-solutions-survey-2024/"&gt;2024 survey commissioned by Intuit QuickBooks&lt;/a&gt; asked 630 owners and executives at U.S. businesses with 10 to 99 employees about their software. Among respondents, 54% cited too much repetitive manual work as a challenge, and 43% cited difficulty integrating with other apps or software. The survey gives a U.S. point of reference for a problem I’ve seen in Japan.&lt;/p&gt;
+&lt;h2 id="how-a-15-minute-fix-became-part-of-the-job"&gt;How a 15-minute fix became part of the job&lt;/h2&gt;
+&lt;p&gt;Aoba Trading is a fictional wholesaler with 180 employees. Its people, events, and figures are made up to illustrate the problem.&lt;/p&gt;
+&lt;p&gt;Ten years ago, its administration team replaced paper timecards with a time-tracking system. Adding up overtime got faster, and staff spent less time with calculators at the payroll cutoff. The manager who approved it got credit, and the people doing the work got some relief. It was a good decision.&lt;/p&gt;
+&lt;p&gt;Three years later, the company replaced its payroll software. The new product was easier to use, but the columns in the time-tracking system’s CSV export came out in a different order. A staff member rearranged them in Excel. It took 15 minutes once a month. That seemed too small a job to ask for a quote to connect the systems.&lt;/p&gt;
+&lt;p&gt;Two years later, HR adopted a cloud service for employee records. Onboarding got easier, but new hires still had to be entered separately into time tracking and payroll. A checklist helped staff remember all three entries. Three systems, plus one more spreadsheet.&lt;/p&gt;
+&lt;p&gt;Then came a reorganization, customer requirements, and regulatory changes. Every department got its own updates in by the deadline. One checklist became five. The monthly close picked up instructions like “Copy last month’s file and change this one cell.”&lt;/p&gt;
+&lt;p&gt;Where did it go wrong? Each team made a reasonable choice within its budget and deadline. Nobody was counting how many hours the company lost as those 15-minute exceptions piled up.&lt;/p&gt;
+&lt;h2 id="four-stages-of-growing-complexity"&gt;Four stages of growing complexity&lt;/h2&gt;
+&lt;p&gt;I’ve seen versions of this pattern while working with organizations in several industries.&lt;/p&gt;
+&lt;figure&gt;
+&lt;img src="https://raw.githubusercontent.com/daidalabox/public-files/main/substack/no-vision-en-01/01_stages_en.png" alt="Four stages in the author’s framework. The stages can occur out of order." /&gt;
+&lt;figcaption aria-hidden="true"&gt;Four stages in the author’s framework. The stages can occur out of order.&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;&lt;strong&gt;1. Adoption.&lt;/strong&gt; Departments buy tools to solve immediate problems. Think checkout, payroll, or time tracking. Each can work on its own at this point, and staff welcome the reduction in manual work.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;2. Expansion.&lt;/strong&gt; The tools start exchanging data across departments and with outside organizations. Time records go to payroll. Sales figures go to accounting. Each connection makes sense on its own, but nobody maps how the connections fit together. Problems accumulate while the system still looks like it’s working.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;3. Interference.&lt;/strong&gt; A change in regulations or workflows, or an aging product, prompts one department to replace a system. Without shared criteria, whoever has the most influence at the time often drives the decision. The handoffs can become wasteful, burdensome, or inconsistent. Staff make up the difference, and more of the work depends on particular people.&lt;/p&gt;
+&lt;p&gt;At Aoba, that person was Sato in payroll. Sato cleaned up the time-tracking export, excluded employees on leave, corrected department codes for people who had transferred, and looked for unusual changes from the previous month before importing the file. There was a manual. Its advice when the numbers looked wrong was to ask Sato.&lt;/p&gt;
+&lt;p&gt;Sato caught problems before anyone else saw them, so payroll met its deadlines and the issues never reached management. Overtime piled up at month-end. A handover could cover which buttons to press and which exceptions resembled last year’s or needed a different customer code, but even Sato didn’t always know why those exceptions existed. The better Sato was at keeping payroll running, the harder it was for the company to see the problem.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;4. Chaos.&lt;/strong&gt; When it’s time to replace another system, the people who first installed it have left and nobody can explain the whole workflow. Investigation takes time, replacement costs climb, and manual steps survive long after anyone remembers why they’re there. The stages can occur out of order. Rapid expansion or a merger can take a company straight to this point.&lt;/p&gt;
+&lt;h2 id="what-happened-when-sato-left"&gt;What happened when Sato left?&lt;/h2&gt;
+&lt;p&gt;One spring, Sato left. At the first payroll cutoff after the handover, the replacement noticed that several employees’ allowances were off. Work categories in the time-tracking system didn’t line up with pay categories in payroll. Every month, Sato had been correcting exceptions that the mapping table didn’t cover.&lt;/p&gt;
+&lt;p&gt;The time-tracking vendor said the CSV matched its specification. The payroll vendor said its software calculated from the data it received. Both were right. The rules that made the handoff work lived partly in a company spreadsheet and partly in Sato’s head.&lt;/p&gt;
+&lt;p&gt;Finding the cause took two days. Recalculating and checking took longer. Payroll finalization slipped as HR, accounting, and administration paused other work to identify the affected employees. A system introduced to reduce overtime was now creating more of it.&lt;/p&gt;
+&lt;p&gt;Aoba got through it. The following month, an error in the sales-to-accounting handoff held up the close. A spreadsheet macro expected customer codes of a fixed length. A new code broke that assumption, so some sales records never made it into accounting. Staff couldn’t finish matching invoices to payments or finalize the month’s figures.&lt;/p&gt;
+&lt;p&gt;Payroll, billing, and the month-end close now depended on people’s memories and manual corrections. A failure in one department could spill into another, and staff couldn’t always find the documents they needed to recover.&lt;/p&gt;
+&lt;p&gt;Replacing software before you understand those conversion rules can carry the same problems into a new system. Start by finding out who fixes what, and why. Aoba’s breakdown is fictional, but it shows how a departure, absence, or outage can expose workarounds the company has depended on for years.&lt;/p&gt;
+&lt;h2 id="why-does-nobody-see-the-whole-workflow"&gt;Why does nobody see the whole workflow?&lt;/h2&gt;
+&lt;p&gt;The more revealing question is what guided each decision. When teams have no shared criteria for how their tools should work together, individually sound purchases can create a fragile workflow. In my experience, four conditions make that more likely.&lt;/p&gt;
+&lt;figure&gt;
+&lt;img src="https://raw.githubusercontent.com/daidalabox/public-files/main/substack/no-vision-en-01/01_causes_en.png" alt="Four organizational causes. No company-wide owner, departmental decisions, vendor-led purchasing, and deadline pressure." /&gt;
+&lt;figcaption aria-hidden="true"&gt;Four organizational causes. No company-wide owner, departmental decisions, vendor-led purchasing, and deadline pressure.&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;ol type="1"&gt;
+&lt;li&gt;&lt;strong&gt;Nobody owns the whole workflow.&lt;/strong&gt; IT may sit alongside someone’s other duties, or there may be no dedicated person at all.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Budgets and decision rights sit with departments.&lt;/strong&gt; Each team buys what solves its own problem.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Purchasing starts with a vendor proposal.&lt;/strong&gt; Without criteria of its own, the company has little basis for comparing proposals.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;A deadline drives the decision.&lt;/strong&gt; A regulatory change can leave a team just enough time for a temporary fix. The next deadline brings another one.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;While Sato was there, Aoba reported almost no payroll incidents. Nobody counted the corrections made outside the software. That work kept the figures looking good, even as the process grew more fragile.&lt;/p&gt;
+&lt;p&gt;Before comparing new products, ask three questions. How many days would it take to resume the work if the person who handles it were away? Can someone find the reasons behind the exceptions? If two systems disagree, which one does the company trust?&lt;/p&gt;
+&lt;p&gt;Aoba’s troubles began with practical fixes made by people trying to help. The best time to see those fixes is while the people who make them are still there. &lt;strong&gt;What does someone on your team quietly fix every month to keep the numbers right?&lt;/strong&gt;&lt;/p&gt;
+&lt;h2 id="in-part-2"&gt;In Part 2&lt;/h2&gt;
+&lt;p&gt;We’ll look at how systems connect in a typical mid-sized company, where manual work creeps in, and what those gaps have in common.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Based on my experience on both sides of IT projects, building systems for customers and commissioning and operating them across industries including logistics, retail, and healthcare. The four stages and four causes are my own framework.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://note.com/daidalabox/n/n4f83c3eabd30"&gt;Read the original Japanese article on note&lt;/a&gt;&lt;/p&gt;
+</content:encoded>
+    </item>
+  </channel>
+</rss>
